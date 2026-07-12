@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Subastas ENARSA</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background:#fff; color:#222; }
+h1 { font-size: 20px; margin-bottom:4px; }
+h2 { font-size: 16px; margin:0 0 10px 0; color:#222; }
+.subtitle { font-size:12px; color:#777; margin-bottom:18px; }
+.tabs { display:flex; gap:8px; margin-bottom:18px; border-bottom:2px solid #eee; flex-wrap:wrap; }
+.tabBtn { padding:9px 18px; cursor:pointer; font-size:14px; font-weight:600; color:#777; background:none; border:none; border-bottom:3px solid transparent; }
+.tabBtn.active { color:#185FA5; border-bottom:3px solid #378ADD; }
+.dateContent { display:none; }
+.dateContent.active { display:block; }
+.kpiRow { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+.kpiCard { flex:1; min-width:150px; background:#f7f9fc; border:1px solid #e4e9f0; border-radius:8px; padding:12px 14px; }
+.kpiLabel { font-size:11px; color:#777; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
+.kpiValue { font-size:20px; font-weight:700; color:#185FA5; }
+.kpiSub { font-size:11px; color:#999; margin-top:2px; }
+.panel { border:1px solid #e4e9f0; border-radius:8px; padding:16px; margin-bottom:22px; background:#fff; }
+.row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+.col { flex:1; min-width:220px; }
+label { font-size:12px; color:#555; display:block; margin-bottom:4px; }
+button { padding:6px 14px; cursor:pointer; font-size:12px; border:1px solid #ccc; background:#f7f9fc; border-radius:4px; }
+button:hover { background:#eef2f7; }
+.chartWrap { position:relative; width:100%; height:380px; margin-top:10px; }
+.hint { font-size:12px; color:#777; }
+.checkBox { height:110px; overflow-y:auto; border:1px solid #ccc; padding:6px; font-size:13px; border-radius:4px;}
+.selAllLabel { display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;font-weight:500;border-bottom:1px solid #eee;margin-bottom:4px; font-size:13px;}
+.modeLabel { display:flex;align-items:center;gap:4px;font-size:13px;color:#333;cursor:pointer; }
+.legend { margin-top:8px; }
+table.detailTable { width:100%; border-collapse:collapse; font-size:12px; }
+table.detailTable th, table.detailTable td { border-bottom:1px solid #eee; padding:5px 8px; text-align:right; }
+table.detailTable th:first-child, table.detailTable td:first-child { text-align:left; }
+table.detailTable thead th { background:#f7f9fc; color:#555; font-weight:600; }
+table.summaryTable { width:100%; border-collapse:collapse; font-size:13px; }
+table.summaryTable th, table.summaryTable td { border-bottom:1px solid #eee; padding:7px 10px; text-align:right; }
+table.summaryTable th:first-child, table.summaryTable td:first-child { text-align:left; }
+table.summaryTable thead th { background:#f7f9fc; color:#555; font-weight:600; }
+</style>
+</head>
+<body>
+
+<h1>Dashboard de Subastas ENARSA &mdash; Resumen global de ofertas</h1>
+<div class="subtitle">Resumen comparativo y detalle por período. Filtrá por ronda en cada gráfico (individual o agrupado).</div>
+
+<div class="tabs" id="tabs"></div>
+<div id="contents"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const DATA = {"01/05/26 al 31/05/26": {"fechaLicitacion": "29/04/26", "rondas": ["1 - DISTRIBUIDORAS", "CAMMESA"], "rows": [[0, 1, 50000.0, 50000.0, 0.0, 0.0, 15.0921], [1, 2, 5500000.0, 5500000.0, 0.0, 0.0, 17.0921]]}, "01/06/26 al 30/06/26": {"fechaLicitacion": "13/05/26", "rondas": ["1 - DISTRIBUIDORAS", "2 - GU", "2 -  GENERADOR", "3 - COMERCIALIZADORES"], "rows": [[0, 1, 8500000.0, 8500000.0, 0.0, 0.0, 15.0108], [0, 3, 12000000.0, 12000000.0, 0.0, 0.0, 15.0131], [0, 4, 500000.0, 500000.0, 0.0, 0.0, 15.0147], [0, 5, 8000000.0, 8000000.0, 0.0, 0.0, 15.0328], [0, 6, 4500000.0, 4500000.0, 0.0, 0.0, 15.0394], [0, 7, 16000000.0, 16000000.0, 0.0, 0.0, 15.0553], [1, 19, 700000.0, 700000.0, 0.2101, 0.0, 16.0478], [1, 29, 100000.0, 100000.0, 0.2, 0.0, 16.1333], [1, 35, 4500000.0, 4500000.0, 0.12, 0.0, 16.3817], [1, 4, 100000.0, 100000.0, 0.11, 0.0, 16.0125], [1, 16, 100000.0, 100000.0, 0.11, 0.0, 16.4597], [1, 34, 6000000.0, 6000000.0, 0.1001, 0.0, 16.4519], [1, 9, 300000.0, 300000.0, 0.1, 0.0, 16.0239], [1, 12, 700000.0, 700000.0, 0.1, 0.0, 16.0317], [1, 14, 1200000.0, 1200000.0, 0.1, 0.0, 16.0378], [1, 17, 100000.0, 100000.0, 0.1, 0.0, 16.0408], [1, 24, 9800000.0, 9800000.0, 0.1, 0.0, 16.0569], [1, 27, 300000.0, 300000.0, 0.1, 0.0, 16.4722], [1, 6, 100000.0, 100000.0, 0.05, 0.0, 16.0192], [1, 7, 2100000.0, 2100000.0, 0.05, 0.0, 16.0192], [1, 10, 100000.0, 100000.0, 0.05, 0.0, 16.025], [1, 11, 100000.0, 100000.0, 0.05, 0.0, 16.0306], [1, 15, 300000.0, 300000.0, 0.05, 0.0, 16.0389], [1, 32, 100000.0, 100000.0, 0.05, 0.0, 16.4636], [1, 31, 100000.0, 100000.0, 0.05, 0.0, 16.4658], [1, 33, 100000.0, 100000.0, 0.05, 0.0, 16.4683], [1, 30, 100000.0, 100000.0, 0.05, 0.0, 16.4703], [1, 2, 400000.0, 400000.0, 0.04, 0.0, 16.0097], [1, 26, 400000.0, 400000.0, 0.02, 0.0, 16.0639], [2, 8, 12000000.0, 12000000.0, 0.01, 0.0, 16.0203], [1, 13, 12800000.0, 12800000.0, 0.01, 0.0, 16.0336], [1, 18, 400000.0, 400000.0, 0.01, 0.0, 16.0478], [1, 21, 500000.0, 500000.0, 0.01, 0.0, 16.0525], [1, 23, 200000.0, 200000.0, 0.01, 0.0, 16.0569], [1, 25, 800000.0, 800000.0, 0.01, 0.0, 16.0583], [1, 28, 100000.0, 100000.0, 0.01, 0.0, 16.0706], [1, 36, 200000.0, 200000.0, 0.001, 0.0, 16.4353], [2, 3, 51600000.0, 51600000.0, 0.0, 0.0, 16.0119], [2, 5, 45600000.0, 45600000.0, 0.0, 0.0, 16.0181], [2, 20, 12500000.0, 12500000.0, 0.0, 0.0, 16.0494], [2, 1, 51000000.0, 51000000.0, 0.0, 0.0, 16.4569], [3, 1, 300000.0, 300000.0, 0.0901, 0.0, 17.4992], [3, 4, 239000000.0, 238700000.0, 0.08, 300000.0, 17.4931], [3, 3, 500000.0, 0.0, 0.001, 500000.0, 17.3136]]}, "01/07/26 al 05/08/26": {"fechaLicitacion": "27/05/26", "rondas": ["1 - DISTRIBUIDORAS", "2 - GRAN USUARIO", "3 - GENERADOR, COMER Y CAMMESA"], "rows": [[0, 1, 14000000.0, 14000000.0, 0.0, 0.0, 11.0072], [0, 3, 1500000.0, 1500000.0, 0.0, 0.0, 11.0153], [0, 4, 10000000.0, 10000000.0, 0.0, 0.0, 11.0186], [0, 5, 10000000.0, 10000000.0, 0.0, 0.0, 11.0303], [0, 6, 30000000.0, 30000000.0, 0.0, 0.0, 11.0381], [0, 7, 40000000.0, 40000000.0, 0.0, 0.0, 11.0622], [0, 8, 6500000.0, 6500000.0, 0.0, 0.0, 11.2547], [1, 6, 14300000.0, 14300000.0, 0.1501, 0.0, 12.4958], [1, 15, 300000.0, 300000.0, 0.11, 0.0, 12.0383], [1, 34, 1500000.0, 1500000.0, 0.1002, 0.0, 12.1303], [1, 8, 200000.0, 200000.0, 0.1, 0.0, 12.0194], [1, 9, 9800000.0, 9800000.0, 0.1, 0.0, 12.0208], [1, 11, 1200000.0, 1200000.0, 0.1, 0.0, 12.0269], [1, 12, 300000.0, 300000.0, 0.1, 0.0, 12.0283], [1, 5, 100000.0, 100000.0, 0.05, 0.0, 12.0114], [1, 17, 200000.0, 200000.0, 0.05, 0.0, 12.0439], [1, 20, 200000.0, 200000.0, 0.05, 0.0, 12.0489], [1, 22, 100000.0, 100000.0, 0.05, 0.0, 12.0514], [1, 23, 200000.0, 200000.0, 0.05, 0.0, 12.0539], [1, 24, 200000.0, 200000.0, 0.05, 0.0, 12.055], [1, 26, 100000.0, 100000.0, 0.05, 0.0, 12.0575], [1, 19, 100000.0, 100000.0, 0.05, 0.0, 12.0603], [1, 27, 400000.0, 400000.0, 0.05, 0.0, 12.0656], [1, 28, 300000.0, 300000.0, 0.05, 0.0, 12.0658], [1, 30, 1300000.0, 1300000.0, 0.05, 0.0, 12.0769], [1, 32, 100000.0, 100000.0, 0.02, 0.0, 12.0886], [1, 3, 100000.0, 100000.0, 0.016, 0.0, 12.3686], [1, 36, 5000000.0, 5000000.0, 0.015, 0.0, 12.3403], [1, 4, 100000.0, 100000.0, 0.01, 0.0, 12.0106], [1, 7, 100000.0, 100000.0, 0.01, 0.0, 12.0172], [1, 10, 1000000.0, 1000000.0, 0.01, 0.0, 12.0264], [1, 13, 100000.0, 100000.0, 0.01, 0.0, 12.0333], [1, 14, 300000.0, 300000.0, 0.01, 0.0, 12.0336], [1, 16, 700000.0, 700000.0, 0.01, 0.0, 12.0411], [1, 18, 100000.0, 100000.0, 0.01, 0.0, 12.0458], [1, 21, 300000.0, 300000.0, 0.01, 0.0, 12.0511], [1, 29, 300000.0, 300000.0, 0.01, 0.0, 12.0728], [1, 37, 100000.0, 100000.0, 0.005, 0.0, 12.4033], [1, 25, 300000.0, 300000.0, 0.001, 0.0, 12.08], [1, 31, 200000.0, 200000.0, 0.001, 0.0, 12.0828], [1, 1, 1000000.0, 1000000.0, 0.001, 0.0, 12.4881], [1, 35, 14000000.0, 14000000.0, 0.0003, 0.0, 12.4997], [1, 33, 100000.0, 100000.0, 0.0, 0.0, 12.1208], [1, 38, 100000.0, 100000.0, 0.0, 0.0, 12.4647], [2, 11, 300000000.0, 300000000.0, 1.01, 0.0, 13.4989], [2, 5, 300000.0, 300000.0, 0.21, 0.0, 13.4983], [2, 8, 100800000.0, 63963934.0, 0.2, 36836066.0, 13.4925], [2, 9, 45600000.0, 28936066.0, 0.2, 16663934.0, 13.4997], [2, 1, 400000.0, 0.0, 0.169, 400000.0, 13.4994], [2, 6, 200000.0, 0.0, 0.16, 200000.0, 13.4853], [2, 10, 51600000.0, 0.0, 0.1, 51600000.0, 13.4789], [2, 3, 16000000.0, 0.0, 0.1, 16000000.0, 13.4856], [2, 2, 12000000.0, 0.0, 0.1, 12000000.0, 13.4894], [2, 7, 336000000.0, 0.0, 0.0, 336000000.0, 13.365]]}, "06/08/26 al 31/08/26": {"fechaLicitacion": "25/06/26", "rondas": ["1 - DISTRIBUIDORAS", "2 - GRAN USUARIO", "3 - GENERADOR y COMERCIALIZADOR", "4 - CAMMESA"], "rows": [[0, 2, 4600000.0, 4600000.0, 0.0, 0.0, 10.4272], [1, 13, 100000.0, 100000.0, 0.11, 0.0, 11.0697], [1, 4, 1500000.0, 1500000.0, 0.1002, 0.0, 11.0414], [1, 9, 200000.0, 200000.0, 0.1, 0.0, 11.0597], [1, 16, 100000.0, 100000.0, 0.05, 0.0, 11.0817], [1, 17, 100000.0, 100000.0, 0.05, 0.0, 11.085], [1, 15, 200000.0, 200000.0, 0.05, 0.0, 11.1753], [1, 14, 100000.0, 100000.0, 0.05, 0.0, 11.1786], [1, 8, 800000.0, 800000.0, 0.01, 0.0, 11.0547], [1, 11, 1300000.0, 1300000.0, 0.01, 0.0, 11.065], [1, 10, 100000.0, 100000.0, 0.01, 0.0, 11.0656], [1, 19, 100000.0, 100000.0, 0.01, 0.0, 11.12], [1, 20, 200000.0, 200000.0, 0.01, 0.0, 11.1247], [1, 21, 100000.0, 100000.0, 0.01, 0.0, 11.1294], [1, 23, 100000.0, 100000.0, 0.01, 0.0, 11.2525], [1, 1, 100000.0, 100000.0, 0.001, 0.0, 11.0197], [1, 5, 200000.0, 200000.0, 0.001, 0.0, 11.05], [1, 6, 600000.0, 600000.0, 0.001, 0.0, 11.0508], [1, 18, 100000.0, 100000.0, 0.001, 0.0, 11.09], [1, 7, 600000.0, 600000.0, 0.0001, 0.0, 11.0533], [1, 12, 8000000.0, 8000000.0, 0.0001, 0.0, 11.0656], [1, 3, 100000.0, 100000.0, 0.0, 0.0, 11.0394], [1, 22, 3500000.0, 3500000.0, 0.0, 0.0, 11.15], [2, 3, 100000.0, 100000.0, 1.113, 0.0, 12.4986], [2, 4, 24000000.0, 24000000.0, 0.2, 0.0, 12.0386], [2, 5, 12000000.0, 12000000.0, 0.2, 0.0, 12.1208], [2, 6, 39500000.0, 39500000.0, 0.15, 0.0, 12.1319], [2, 8, 90000000.0, 90000000.0, 0.11, 0.0, 12.4225], [2, 7, 34400000.0, 34400000.0, 0.1, 0.0, 12.1475], [2, 2, 41600000.0, 41600000.0, 0.025, 0.0, 12.0183], [3, 0, 127600000.0, 0.0, null, 127600000.0, null]]}};
+
+const PALETTE = ["#378ADD","#D85A30","#1D9E75","#D4537E","#7F77DD","#BA7517","#639922","#888780"];
+const fmtNum = n => Math.round(n).toLocaleString('es-AR');
+const fmtPrice = n => (n===null || n===undefined) ? '-' : n.toLocaleString('es-AR', {minimumFractionDigits:4, maximumFractionDigits:4});
+const fmtHour = h => { if(h===null || h===undefined) return '-'; const hh=Math.floor(h); const mm=Math.round((h-hh)*60); return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+
+const tabsEl = document.getElementById('tabs');
+const contentsEl = document.getElementById('contents');
+const periodKeys = Object.keys(DATA);
+
+function periodSummary(D){
+  let totOf=0, totAs=0, totSin=0, sumPV=0, sumAsPriced=0;
+  D.rows.forEach(r=>{ totOf+=r[2]; totAs+=r[3]; totSin+=r[5]; if(r[4]!==null){ sumPV += r[4]*r[3]; sumAsPriced += r[3]; } });
+  return { totOf, totAs, totSin, precioProm: sumAsPriced>0 ? sumPV/sumAsPriced : 0, pctAsig: totOf>0 ? totAs/totOf*100 : 0, n: D.rows.length };
+}
+
+function parseDDMMYY(s){
+  const [d,m,y] = s.split('/').map(Number);
+  return new Date(2000 + y, m - 1, d);
+}
+function periodDays(label){
+  const parts = label.split(' al ');
+  if(parts.length !== 2) return null;
+  const d1 = parseDDMMYY(parts[0].trim());
+  const d2 = parseDDMMYY(parts[1].trim());
+  return Math.round((d2 - d1) / (1000*60*60*24)) + 1;
+}
+
+// ---- Tab: Resumen ----
+(function(){
+  const btn = document.createElement('button');
+  btn.className = 'tabBtn active';
+  btn.textContent = 'Resumen';
+  btn.dataset.period = '__resumen__';
+  btn.addEventListener('click', () => selectTab('__resumen__'));
+  tabsEl.appendChild(btn);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'dateContent active';
+  wrap.dataset.period = '__resumen__';
+
+  const sums = periodKeys.map(k => ({ key:k, s: periodSummary(DATA[k]), days: periodDays(k) }));
+
+  let rowsHtml = '';
+  sums.forEach(({key,s}) => {
+    const lic = DATA[key].fechaLicitacion || 'N/D';
+    rowsHtml += `<tr>
+      <td>${key}</td>
+      <td>${lic}</td>
+      <td>${fmtNum(s.totOf)}</td>
+      <td>${fmtNum(s.totAs)}</td>
+      <td>${fmtNum(s.totSin)}</td>
+      <td>${s.pctAsig.toFixed(1)}%</td>
+      <td>${fmtPrice(s.precioProm)}</td>
+      <td>${s.n}</td>
+    </tr>`;
+  });
+
+  wrap.innerHTML = `
+    <div class="kpiRow">
+      ${sums.map(({key,s}) => `
+        <div class="kpiCard">
+          <div class="kpiLabel">${key}</div>
+          <div class="kpiValue">${fmtNum(s.totAs)} m&sup3;</div>
+          <div class="kpiSub">asignado &middot; ${s.pctAsig.toFixed(1)}% del ofertado &middot; precio prom. ${fmtPrice(s.precioProm)}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="kpiRow">
+      ${sums.map(({key,s,days}) => `
+        <div class="kpiCard">
+          <div class="kpiLabel">${key} &mdash; promedio diario</div>
+          <div class="kpiValue">${fmtNum(s.totAs/days)} m&sup3;/día</div>
+          <div class="kpiSub">Vol. asignado promedio &middot; Ofertado: ${fmtNum(s.totOf/days)} m&sup3;/día &middot; Sin asignar: ${fmtNum(s.totSin/days)} m&sup3;/día &middot; ${days} días</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="panel">
+      <h2>Comparativa de volúmenes por período</h2>
+      <div class="chartWrap"><canvas id="chartResumenVol"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Comparativa de precio promedio ponderado por período</h2>
+      <div class="chartWrap"><canvas id="chartResumenPrecio"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Tabla comparativa</h2>
+      <table class="summaryTable">
+        <thead><tr><th>Período</th><th>Fecha Licitación</th><th>Vol. Ofertado (m&sup3;)</th><th>Vol. Asignado (m&sup3;)</th><th>Vol. Sin asignar (m&sup3;)</th><th>% Asignación</th><th>Precio prom. pond. (USD/MMBTU)</th><th>Cant. ofertas</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `;
+  contentsEl.appendChild(wrap);
+
+  new Chart(document.getElementById('chartResumenVol'), {
+    type: 'bar',
+    data: {
+      labels: sums.map(o=>o.key),
+      datasets: [
+        {label:'Vol. Ofertado', data: sums.map(o=>o.s.totOf), backgroundColor: PALETTE[0]},
+        {label:'Vol. Asignado', data: sums.map(o=>o.s.totAs), backgroundColor: PALETTE[2]},
+        {label:'Vol. Sin asignar', data: sums.map(o=>o.s.totSin), backgroundColor: PALETTE[1]}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: { y: { title:{display:true, text:'Volumen (m3)'}, beginAtZero:true } }
+    }
+  });
+
+  new Chart(document.getElementById('chartResumenPrecio'), {
+    type: 'bar',
+    data: {
+      labels: sums.map(o=>o.key),
+      datasets: [{label:'Precio promedio ponderado', data: sums.map(o=>o.s.precioProm), backgroundColor: PALETTE[3]}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: { y: { title:{display:true, text:'USD/MMBTU'}, beginAtZero:true } },
+      plugins: { legend: { display:false } }
+    }
+  });
+})();
+
+// ---- Tabs por período ----
+periodKeys.forEach((dk, idx) => {
+  const btn = document.createElement('button');
+  btn.className = 'tabBtn';
+  btn.textContent = dk;
+  btn.dataset.period = dk;
+  btn.addEventListener('click', () => selectTab(dk));
+  tabsEl.appendChild(btn);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'dateContent';
+  wrap.id = 'content_' + idx;
+  wrap.dataset.period = dk;
+  wrap.innerHTML = buildContentHTML(idx);
+  contentsEl.appendChild(wrap);
+});
+
+function selectTab(pk){
+  document.querySelectorAll('.tabBtn').forEach(b => b.classList.toggle('active', b.dataset.period === pk));
+  document.querySelectorAll('.dateContent').forEach(c => c.classList.toggle('active', c.dataset.period === pk));
+}
+
+function buildContentHTML(idx){
+  return `
+    <div class="kpiRow" id="kpiRow_${idx}"></div>
+
+    <div class="panel">
+      <h2>Volumen Ofertado vs Asignado por Ronda</h2>
+      <div class="row">
+        <div class="col">
+          <label>Rondas</label>
+          <label class="selAllLabel"><input type="checkbox" id="rondaAllA_${idx}"> Seleccionar / deseleccionar todas</label>
+          <div class="checkBox" id="rondaBoxA_${idx}"></div>
+        </div>
+        <div class="col" style="max-width:260px;">
+          <label>Modo de visualización</label>
+          <label class="modeLabel"><input type="radio" name="modeA_${idx}" id="modeA_ind_${idx}" value="individual" checked> Por ronda (individual)</label>
+          <label class="modeLabel"><input type="radio" name="modeA_${idx}" id="modeA_grp_${idx}" value="agrupado"> Agrupado (todas las rondas seleccionadas)</label>
+          <div style="margin-top:10px;">
+            <button id="clearA_${idx}">Limpiar selección</button>
+          </div>
+        </div>
+      </div>
+      <div class="legend" id="legendA_${idx}"></div>
+      <div class="chartWrap"><canvas id="chartA_${idx}"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h2>Curva de oferta &mdash; Precio vs Volumen acumulado (orden de mérito)</h2>
+      <div class="row">
+        <div class="col">
+          <label>Rondas</label>
+          <label class="selAllLabel"><input type="checkbox" id="rondaAllB_${idx}"> Seleccionar / deseleccionar todas</label>
+          <div class="checkBox" id="rondaBoxB_${idx}"></div>
+        </div>
+        <div class="col" style="max-width:260px;">
+          <label>Modo de visualización</label>
+          <label class="modeLabel"><input type="radio" name="modeB_${idx}" id="modeB_ind_${idx}" value="individual" checked> Curva por ronda (individual)</label>
+          <label class="modeLabel"><input type="radio" name="modeB_${idx}" id="modeB_grp_${idx}" value="agrupado"> Curva agrupada (todas seleccionadas)</label>
+          <div style="margin-top:10px;">
+            <button id="clearB_${idx}">Limpiar selección</button>
+          </div>
+        </div>
+      </div>
+      <div class="legend" id="legendB_${idx}"></div>
+      <div class="chartWrap"><canvas id="chartB_${idx}"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h2>Ofertas por hora del día &mdash; Precio vs Hora (tamaño = Vol. Asignado)</h2>
+      <div class="row">
+        <div class="col">
+          <label>Rondas</label>
+          <label class="selAllLabel"><input type="checkbox" id="rondaAllC_${idx}"> Seleccionar / deseleccionar todas</label>
+          <div class="checkBox" id="rondaBoxC_${idx}"></div>
+        </div>
+        <div class="col" style="max-width:260px;">
+          <label>Modo de visualización</label>
+          <label class="modeLabel"><input type="radio" name="modeC_${idx}" id="modeC_ind_${idx}" value="individual" checked> Por ronda (individual)</label>
+          <label class="modeLabel"><input type="radio" name="modeC_${idx}" id="modeC_grp_${idx}" value="agrupado"> Agrupado (todas seleccionadas)</label>
+          <div style="margin-top:10px;">
+            <button id="clearC_${idx}">Limpiar selección</button>
+          </div>
+        </div>
+      </div>
+      <div class="legend" id="legendC_${idx}"></div>
+      <div class="chartWrap"><canvas id="chartC_${idx}"></canvas></div>
+      <div class="hint">El tamaño de cada círculo es proporcional al volumen asignado de la oferta.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Detalle de ofertas</h2>
+      <div style="max-height:320px; overflow-y:auto;">
+        <table class="detailTable" id="detailTable_${idx}"></table>
+      </div>
+    </div>
+  `;
+}
+
+function makeCheckbox(container, text, value, cls, onChange){
+  const label = document.createElement('label');
+  label.style.display='flex'; label.style.alignItems='center'; label.style.gap='6px'; label.style.padding='2px 0'; label.style.cursor='pointer';
+  const cb = document.createElement('input');
+  cb.type='checkbox'; cb.value=value; cb.className=cls;
+  cb.addEventListener('change', onChange);
+  label.appendChild(cb);
+  label.appendChild(document.createTextNode(text));
+  container.appendChild(label);
+  return cb;
+}
+
+const charts = {};
+
+periodKeys.forEach((dk, idx) => {
+  const D = DATA[dk];
+  const s = periodSummary(D);
+
+  document.getElementById('kpiRow_'+idx).innerHTML = `
+    <div class="kpiCard"><div class="kpiLabel">Fecha Licitación</div><div class="kpiValue" style="font-size:16px;">${DATA[dk].fechaLicitacion || 'N/D'}</div><div class="kpiSub">fecha de subasta</div></div>
+    <div class="kpiCard"><div class="kpiLabel">Vol. Ofertado</div><div class="kpiValue">${fmtNum(s.totOf)}</div><div class="kpiSub">m&sup3;</div></div>
+    <div class="kpiCard"><div class="kpiLabel">Vol. Asignado</div><div class="kpiValue">${fmtNum(s.totAs)}</div><div class="kpiSub">m&sup3;</div></div>
+    <div class="kpiCard"><div class="kpiLabel">Vol. Sin asignar</div><div class="kpiValue">${fmtNum(s.totSin)}</div><div class="kpiSub">m&sup3;</div></div>
+    <div class="kpiCard"><div class="kpiLabel">% Asignación</div><div class="kpiValue">${s.pctAsig.toFixed(1)}%</div><div class="kpiSub">asignado / ofertado</div></div>
+    <div class="kpiCard"><div class="kpiLabel">Precio prom. ponderado</div><div class="kpiValue">${fmtPrice(s.precioProm)}</div><div class="kpiSub">USD/MMBTU</div></div>
+    <div class="kpiCard"><div class="kpiLabel">Cant. ofertas</div><div class="kpiValue">${s.n}</div><div class="kpiSub">registros</div></div>
+  `;
+
+  const boxA = document.getElementById('rondaBoxA_'+idx);
+  D.rondas.forEach((r,i)=> makeCheckbox(boxA, r, i, 'rondaCbA_'+idx, ()=>{ syncSelAll('rondaAllA_'+idx,'rondaCbA_'+idx); renderA(idx); }));
+  const boxB = document.getElementById('rondaBoxB_'+idx);
+  D.rondas.forEach((r,i)=> makeCheckbox(boxB, r, i, 'rondaCbB_'+idx, ()=>{ syncSelAll('rondaAllB_'+idx,'rondaCbB_'+idx); renderB(idx); }));
+  const boxC = document.getElementById('rondaBoxC_'+idx);
+  D.rondas.forEach((r,i)=> makeCheckbox(boxC, r, i, 'rondaCbC_'+idx, ()=>{ syncSelAll('rondaAllC_'+idx,'rondaCbC_'+idx); renderC(idx); }));
+
+  document.getElementById('rondaAllA_'+idx).addEventListener('change', (e)=>{
+    document.querySelectorAll('.rondaCbA_'+idx).forEach(cb=>cb.checked = e.target.checked);
+    renderA(idx);
+  });
+  document.getElementById('rondaAllB_'+idx).addEventListener('change', (e)=>{
+    document.querySelectorAll('.rondaCbB_'+idx).forEach(cb=>cb.checked = e.target.checked);
+    renderB(idx);
+  });
+  document.getElementById('rondaAllC_'+idx).addEventListener('change', (e)=>{
+    document.querySelectorAll('.rondaCbC_'+idx).forEach(cb=>cb.checked = e.target.checked);
+    renderC(idx);
+  });
+  document.getElementById('clearA_'+idx).addEventListener('click', ()=>{
+    document.querySelectorAll('.rondaCbA_'+idx).forEach(cb=>cb.checked=false);
+    document.getElementById('rondaAllA_'+idx).checked=false;
+    renderA(idx);
+  });
+  document.getElementById('clearB_'+idx).addEventListener('click', ()=>{
+    document.querySelectorAll('.rondaCbB_'+idx).forEach(cb=>cb.checked=false);
+    document.getElementById('rondaAllB_'+idx).checked=false;
+    renderB(idx);
+  });
+  document.getElementById('clearC_'+idx).addEventListener('click', ()=>{
+    document.querySelectorAll('.rondaCbC_'+idx).forEach(cb=>cb.checked=false);
+    document.getElementById('rondaAllC_'+idx).checked=false;
+    renderC(idx);
+  });
+  document.getElementById('modeA_ind_'+idx).addEventListener('change', ()=>renderA(idx));
+  document.getElementById('modeA_grp_'+idx).addEventListener('change', ()=>renderA(idx));
+  document.getElementById('modeB_ind_'+idx).addEventListener('change', ()=>renderB(idx));
+  document.getElementById('modeB_grp_'+idx).addEventListener('change', ()=>renderB(idx));
+  document.getElementById('modeC_ind_'+idx).addEventListener('change', ()=>renderC(idx));
+  document.getElementById('modeC_grp_'+idx).addEventListener('change', ()=>renderC(idx));
+
+  renderA(idx);
+  renderB(idx);
+  renderC(idx);
+  renderTable(idx);
+});
+
+function syncSelAll(allId, cbClass){
+  const all = document.querySelectorAll('.'+cbClass);
+  const checked = document.querySelectorAll('.'+cbClass+':checked');
+  document.getElementById(allId).checked = all.length>0 && all.length===checked.length;
+}
+
+function getChecked(cbClass){
+  return Array.from(document.querySelectorAll('.'+cbClass+':checked')).map(cb=>parseInt(cb.value));
+}
+
+function buildLegend(elId, items){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  items.forEach(it=>{
+    const span = document.createElement('span');
+    span.style.display='inline-flex'; span.style.alignItems='center'; span.style.gap='4px'; span.style.marginRight='12px'; span.style.fontSize='12px'; span.style.color='#444';
+    span.innerHTML = '<span style="width:10px;height:10px;border-radius:2px;background:'+it.color+';display:inline-block;"></span>'+it.label;
+    el.appendChild(span);
+  });
+}
+
+function renderA(idx){
+  const dk = periodKeys[idx];
+  const D = DATA[dk];
+  const selRondas = getChecked('rondaCbA_'+idx);
+  const rondaIdx = selRondas.length ? selRondas : D.rondas.map((r,i)=>i);
+  const mode = document.getElementById('modeA_grp_'+idx).checked ? 'agrupado' : 'individual';
+
+  let labels, datasets, legendItems;
+
+  if(mode === 'individual'){
+    labels = rondaIdx.map(ri => D.rondas[ri]);
+    const ofertado = rondaIdx.map(ri => D.rows.filter(r=>r[0]===ri).reduce((a,r)=>a+r[2],0));
+    const asignado = rondaIdx.map(ri => D.rows.filter(r=>r[0]===ri).reduce((a,r)=>a+r[3],0));
+    const sinasig = rondaIdx.map(ri => D.rows.filter(r=>r[0]===ri).reduce((a,r)=>a+r[5],0));
+    datasets = [
+      {label:'Vol. Ofertado', data: ofertado, backgroundColor: PALETTE[0]},
+      {label:'Vol. Asignado', data: asignado, backgroundColor: PALETTE[2]},
+      {label:'Vol. Sin asignar', data: sinasig, backgroundColor: PALETTE[1]}
+    ];
+    legendItems = [{label:'Vol. Ofertado',color:PALETTE[0]},{label:'Vol. Asignado',color:PALETTE[2]},{label:'Vol. Sin asignar',color:PALETTE[1]}];
+  } else {
+    labels = ['Total seleccionado'];
+    const ofertado = rondaIdx.reduce((a,ri)=>a + D.rows.filter(r=>r[0]===ri).reduce((b,r)=>b+r[2],0), 0);
+    const asignado = rondaIdx.reduce((a,ri)=>a + D.rows.filter(r=>r[0]===ri).reduce((b,r)=>b+r[3],0), 0);
+    const sinasig = rondaIdx.reduce((a,ri)=>a + D.rows.filter(r=>r[0]===ri).reduce((b,r)=>b+r[5],0), 0);
+    datasets = [
+      {label:'Vol. Ofertado', data: [ofertado], backgroundColor: PALETTE[0]},
+      {label:'Vol. Asignado', data: [asignado], backgroundColor: PALETTE[2]},
+      {label:'Vol. Sin asignar', data: [sinasig], backgroundColor: PALETTE[1]}
+    ];
+    legendItems = [{label:'Vol. Ofertado',color:PALETTE[0]},{label:'Vol. Asignado',color:PALETTE[2]},{label:'Vol. Sin asignar',color:PALETTE[1]}];
+  }
+
+  buildLegend('legendA_'+idx, legendItems);
+
+  const key = 'A_'+idx;
+  if(charts[key]) charts[key].destroy();
+  charts[key] = new Chart(document.getElementById('chartA_'+idx), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { title: { display:true, text:'Volumen (m3)' }, beginAtZero:true } },
+      plugins: { legend: { display:false } }
+    }
+  });
+}
+
+function renderB(idx){
+  const dk = periodKeys[idx];
+  const D = DATA[dk];
+  const selRondas = getChecked('rondaCbB_'+idx);
+  const rondaIdx = selRondas.length ? selRondas : D.rondas.map((r,i)=>i);
+  const mode = document.getElementById('modeB_grp_'+idx).checked ? 'agrupado' : 'individual';
+
+  let datasets, legendItems;
+
+  if(mode === 'individual'){
+    datasets = rondaIdx.map((ri, i) => {
+      const offers = D.rows.filter(r=>r[0]===ri && r[4]!==null).slice().sort((a,b)=>a[4]-b[4]);
+      let acc = 0;
+      const pts = offers.map(r => { acc += r[2]; return {x: acc, y: r[4]}; });
+      const color = PALETTE[i % PALETTE.length];
+      return { label: D.rondas[ri], data: pts, borderColor: color, backgroundColor: color+'26', stepped:'before', fill:false, pointRadius:2, tension:0 };
+    });
+    legendItems = datasets.map((d,i)=>({label:d.label, color: PALETTE[i % PALETTE.length]}));
+  } else {
+    const offers = D.rows.filter(r=>rondaIdx.includes(r[0]) && r[4]!==null).slice().sort((a,b)=>a[4]-b[4]);
+    let acc = 0;
+    const pts = offers.map(r => { acc += r[2]; return {x: acc, y: r[4]}; });
+    datasets = [{ label:'Curva agrupada (rondas seleccionadas)', data: pts, borderColor: PALETTE[0], backgroundColor: PALETTE[0]+'33', stepped:'before', fill:true, pointRadius:2, tension:0 }];
+    legendItems = [{label:'Curva agrupada (rondas seleccionadas)', color:PALETTE[0]}];
+  }
+
+  buildLegend('legendB_'+idx, legendItems);
+
+  const key = 'B_'+idx;
+  if(charts[key]) charts[key].destroy();
+  charts[key] = new Chart(document.getElementById('chartB_'+idx), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type:'linear', title: { display:true, text:'Volumen ofertado acumulado (m3)' } },
+        y: { title: { display:true, text:'Precio (USD/MMBTU)' } }
+      },
+      plugins: { legend: { display:false } }
+    }
+  });
+}
+
+function renderC(idx){
+  const dk = periodKeys[idx];
+  const D = DATA[dk];
+  const selRondas = getChecked('rondaCbC_'+idx);
+  const rondaIdx = selRondas.length ? selRondas : D.rondas.map((r,i)=>i);
+  const mode = document.getElementById('modeC_grp_'+idx).checked ? 'agrupado' : 'individual';
+
+  // max vol asignado across this period to scale bubble radius
+  const maxAsig = Math.max(1, ...D.rows.map(r=>r[3]));
+  const radiusFor = v => 3 + (Math.sqrt(v / maxAsig) * 18);
+
+  let datasets, legendItems;
+
+  if(mode === 'individual'){
+    datasets = rondaIdx.map((ri, i) => {
+      const offers = D.rows.filter(r=>r[0]===ri && r[6] !== null && r[6] !== undefined);
+      const pts = offers.map(r => ({ x: r[6], y: r[4], r: radiusFor(r[3]), vol: r[3] }));
+      const color = PALETTE[i % PALETTE.length];
+      return { label: D.rondas[ri], data: pts, backgroundColor: color+'99', borderColor: color };
+    });
+    legendItems = datasets.map((d,i)=>({label:d.label, color: PALETTE[i % PALETTE.length]}));
+  } else {
+    const offers = D.rows.filter(r=>rondaIdx.includes(r[0]) && r[6] !== null && r[6] !== undefined);
+    const pts = offers.map(r => ({ x: r[6], y: r[4], r: radiusFor(r[3]), vol: r[3] }));
+    datasets = [{ label:'Ofertas (rondas seleccionadas)', data: pts, backgroundColor: PALETTE[0]+'99', borderColor: PALETTE[0] }];
+    legendItems = [{label:'Ofertas (rondas seleccionadas)', color:PALETTE[0]}];
+  }
+
+  buildLegend('legendC_'+idx, legendItems);
+
+  const key = 'C_'+idx;
+  if(charts[key]) charts[key].destroy();
+  charts[key] = new Chart(document.getElementById('chartC_'+idx), {
+    type: 'bubble',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type:'linear', title: { display:true, text:'Hora del día' }, ticks: { callback: v => fmtHour(v) } },
+        y: { title: { display:true, text:'Precio (USD/MMBTU)' } }
+      },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label} — Hora ${fmtHour(ctx.raw.x)}, Precio ${fmtPrice(ctx.raw.y)} USD/MMBTU, Vol. Asignado ${fmtNum(ctx.raw.vol)} m³`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTable(idx){
+  const dk = periodKeys[idx];
+  const D = DATA[dk];
+  const tbl = document.getElementById('detailTable_'+idx);
+  let html = '<thead><tr><th>Ronda</th><th>Nro. Oferta</th><th>Vol. Ofertado</th><th>Vol. Asignado</th><th>Precio (USD/MMBTU)</th><th>Vol. Sin asignar</th><th>Hora</th></tr></thead><tbody>';
+  D.rows.forEach(r=>{
+    html += `<tr><td>${D.rondas[r[0]]}</td><td>${r[1]}</td><td>${fmtNum(r[2])}</td><td>${fmtNum(r[3])}</td><td>${fmtPrice(r[4])}</td><td>${fmtNum(r[5])}</td><td>${fmtHour(r[6])}</td></tr>`;
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+</script>
+</body>
+</html>
